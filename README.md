@@ -19,8 +19,8 @@ To finetunewithout KL divergence loss
 ```
 export MODE_A=smiles
 export MODE_B=iupac
-export FOLDER_A=data/reaction_${MODE_A}_80k
-export FOLDER_B=data/reaction_${MODE_B}_80k
+export FOLDER_A=data/reaction_${MODE_A}
+export FOLDER_B=data/reaction_${MODE_B}
 export MODEL=gpt2
 export EPOCHS=20
 export LR=1e-4
@@ -56,7 +56,7 @@ Taking the model trained without KL divergence loss as an example:
 ```
 # SMILES representation for inputs
 export MODE=smiles
-export FOLDER=data/reaction_${MODE}_80k
+export FOLDER=data/reaction_${MODE}
 export MODEL=gpt2
 export EPOCHS=20
 export LR=1e-4
@@ -73,7 +73,7 @@ TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/ev
 
 # IUPAC representation for inputs
 export MODE=iupac
-export FOLDER=data/reaction_${MODE}_80k
+export FOLDER=data/reaction_${MODE}
 export MODEL=gpt2
 export EPOCHS=20
 export LR=1e-4
