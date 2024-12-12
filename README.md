@@ -54,7 +54,7 @@ To finetune with KL divergence loss, change ''PRETRAIN_EPOCHS=1''.
 Next, we test the trained model.
 Taking the model trained without KL divergence loss as an example:
 ```
-# SMILES representation for inputs
+## SMILES representation for inputs
 export MODE=smiles
 export FOLDER=data/reaction_${MODE}_80k
 export MODEL=gpt2
@@ -70,7 +70,7 @@ TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/ev
     --save_model $SAVE \
     > ${SAVE}/log.gen 2>&1&
 
-# IUPAC representation for inputs
+## IUPAC representation for inputs
 export MODE=iupac
 export FOLDER=data/reaction_${MODE}_80k
 export MODEL=gpt2
