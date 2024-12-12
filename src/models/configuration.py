@@ -1,6 +1,6 @@
 from transformers import PretrainedConfig
 
-class TeacherConfig(PretrainedConfig):
+class Config(PretrainedConfig):
     def __init__(
         self,
         base_model='gpt2',
@@ -10,4 +10,5 @@ class TeacherConfig(PretrainedConfig):
         self.base_model = base_model
         self.tokenizer_name = tokenizer_name
         super().__init__(**kwargs)
+
 
