@@ -49,6 +49,7 @@ TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICESNOTUSED=0 stdbuf -oL -eL python
     --generate_onebatch \
     > ${SAVE}/log.train 2>&1&
 
+```
 To finetune with KL divergence loss, change ''PRETRAIN_EPOCHS=1''.
 
 Next, we test the trained model.
