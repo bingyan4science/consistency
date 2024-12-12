@@ -25,7 +25,7 @@ false_iupac_common_list = []
 smiles_common_true_list = []
 iupac_common_true_list = []
 
-for epoch in range(1):
+for epoch in range(20):
     input_file_smiles = f'train_models_kl/smiles/valid_results_splitsmiles.csv'
     df_in_smiles = pd.read_csv(input_file_smiles)
     df_in_smiles_false = df_in_smiles[df_in_smiles['Predicted_0']!=df_in_smiles['Target']]
