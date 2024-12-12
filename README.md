@@ -2,7 +2,7 @@
 
 # Inconsistency of LLMs
 
-This repo provides code for "Inconsistency of Large Language Models In Molecular Representations" by Bing Yan and Kyunghyun Cho. Note that this repo can be found at https://github.com/bingyan4science/consistency.
+This repo provides code for "Inconsistency of Large Language Models In Molecular Representations" by Bing Yan, Angelica Chen, and Kyunghyun Cho. Note that this repo can be found at https://github.com/bingyan4science/consistency.
 
 ## Dependencies
 
@@ -11,89 +11,82 @@ The code has been tested on Python 3.10 and PyTorch 2.1.0.
 * Python 3.10.13: `conda create --prefix ../conda_consist python=3.10`
 * PyTorch: https://pytorch.org/get-started/locally/ `conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia`
 
-## Controlled experiments: Train a reaction prediction model based on GPT-2 Small
+## Finetuning experiments: Train a forward reaction prediction model based on GPT-2 Small
 
-For the controlled experiments, we train a reaction prediction model by fine-tuning the GPT-2 Small model on SMILES vs IUPAC representations for inputs, and equal chance of generating SMILES and IUPAC outputs:
+For the finetuning, we train a forward reaction prediction model by finetuning the GPT-2 Small model on one-to-one mapped SMILES vs IUPAC input representations, and equal chance of generating SMILES and IUPAC outputs:
 
+To finetunewithout KL divergence loss
 ```
-# SMILES representation for inputs
-export MODE=smiles
-export FOLDER=data/llasmol_reaction_${MODE}_combined_80k_noinstruction
+export MODE_A=smiles
+export MODE_B=iupac
+export FOLDER_A=data/reaction_${MODE_A}_80k
+export FOLDER_B=data/reaction_${MODE_B}_80k
 export MODEL=gpt2
-export EPOCHS=60
-export LR=5e-5
-export BSZ=16
-export SAVE=train_models/combined_gpt2/${MODE}_e${EPOCHS}_onebatch_bsz${BSZ}_lr${LR}
+export EPOCHS=20
+export LR=1e-4
+export WEIGHT=1.0
+export NUM_SAMPLES=1
+export BSZ=32
+export PRETRAIN_EPOCHS=20
+export SAVE=train_models_nokl
 echo $SAVE
-mkdir -p $SAVE
-TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/train_teacher_combined.py \
-    --train_path ${FOLDER}/train.txt \
-    --val_path ${FOLDER}/valid.txt \
+mkdir -p ${SAVE}/${MODE_A}
+mkdir -p ${SAVE}/${MODE_B}
+TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICESNOTUSED=0 stdbuf -oL -eL python src/train.py \
+    --train_path_a ${FOLDER_A}/train.txt \
+    --val_path_a ${FOLDER_A}/valid.txt \
+    --train_path_b ${FOLDER_B}/train.txt \
+    --val_path_b ${FOLDER_B}/valid.txt \
     --epochs $EPOCHS \
     --lr $LR \
+    --weight $WEIGHT \
+    --num_samples $NUM_SAMPLES \
     --base_model $MODEL \
     --batch_size $BSZ \
-    --save_model $SAVE \
+    --pretrain_epochs ${PRETRAIN_EPOCHS} \
+    --save_model_a ${SAVE}/${MODE_A} \
+    --save_model_b ${SAVE}/${MODE_B} \
     --generate_onebatch \
-    > ${SAVE}/log.train 2>&1
+    > ${SAVE}/log.train 2>&1&
 
-# IUPAC representation for inputs
-export MODE=iupac
-export FOLDER=data/llasmol_reaction_${MODE}_combined_80k_noinstruction
-export MODEL=gpt2
-export EPOCHS=60
-export LR=5e-5
-export BSZ=16
-export SAVE=train_models/combined_gpt2/${MODE}_e${EPOCHS}_onebatch_bsz${BSZ}_lr${LR}
-echo $SAVE
-mkdir -p $SAVE
-TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/train_teacher_combined.py \
-    --train_path ${FOLDER}/train.txt \
-    --val_path ${FOLDER}/valid.txt \
-    --epochs $EPOCHS \
-    --lr $LR \
-    --base_model $MODEL \
-    --batch_size $BSZ \
-    --save_model $SAVE \
-    --generate_onebatch \
-    > ${SAVE}/log.train 2>&1
-```
+To finetune with KL divergence loss, change ''PRETRAIN_EPOCHS=1''.
 
 Next, we test the trained model.
+Taking the model trained without KL divergence loss as an example:
 ```
 # SMILES representation for inputs
 export MODE=smiles
-export FOLDER=data/llasmol_reaction_${MODE}_combined_80k_noinstruction
+export FOLDER=data/reaction_${MODE}_80k
 export MODEL=gpt2
-export EPOCHS=60
-export LR=5e-5
-export BSZ=16
-export SAVE=train_models/combined_gpt2/${MODE}_e${EPOCHS}_onebatch_bsz${BSZ}_lr${LR}
+export EPOCHS=20
+export LR=1e-4
+export BSZ=32
+export SAVE=train_models_nokl/${MODE}
 echo $SAVE
 mkdir -p $SAVE
-TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/train_teacher_combined_evaluate.py \
+TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/evaluate.py \
     --data_folder ${FOLDER} \
     --epochs $EPOCHS \
     --base_model $MODEL \
     --save_model $SAVE \
-    > ${SAVE}/log.gen.cont 2>&1
+    > ${SAVE}/log.gen.beam 2>&1&
 
 # IUPAC representation for inputs
 export MODE=iupac
-export FOLDER=data/llasmol_reaction_${MODE}_combined_80k_noinstruction
+export FOLDER=data/reaction_${MODE}_80k
 export MODEL=gpt2
-export EPOCHS=60
-export LR=5e-5
-export BSZ=16
-export SAVE=train_models/combined_gpt2/${MODE}_e${EPOCHS}_onebatch_bsz${BSZ}_lr${LR}
+export EPOCHS=20
+export LR=1e-4
+export BSZ=32
+export SAVE=train_models_nokl/${MODE}
 echo $SAVE
 mkdir -p $SAVE
-TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/train_teacher_combined_evaluate.py \
+TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/evaluate.py \
     --data_folder ${FOLDER} \
     --epochs $EPOCHS \
     --base_model $MODEL \
     --save_model $SAVE \
-    > ${SAVE}/log.gen 2>&1
+    > ${SAVE}/log.gen.beam 2>&1&
 ```
 
 Then we evaluate the prediction and calculate the consistency between SMILES and IUPAC inputs.
@@ -101,68 +94,3 @@ Then we evaluate the prediction and calculate the consistency between SMILES and
 ```
 python calc_consistency.py
 ```
-
-## Probe experiments: Train a linear classifier on the 6th layer hidden states to get functional groups
-
-First, we train and test the probe.
-
-```
-# SMILES representation for inputs
-export MODE=smiles
-export FOLDER=data/llasmol_reaction_${MODE}_combined_80k_noinstruction
-export MODEL=gpt2
-export EPOCHS=60
-export LR=5e-5
-export BSZ=16
-export E=10
-export LAYER=5
-export OLDSAVE=train_models/combined_gpt2/${MODE}_e${EPOCHS}_onebatch_bsz${BSZ}_lr${LR}
-export SAVE=${OLDSAVE}/fg_e${E}
-echo $SAVE
-mkdir -p $SAVE
-TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/train_teacher_combined_fg.py \
-    --from_pretrained  ${OLDSAVE}/checkpoint_${E} \
-    --train_path ${FOLDER}/train.txt \
-    --val_path ${FOLDER}/valid.txt \
-    --test_path ${FOLDER}/test_smiles.txt \
-    --epochs 1 \
-    --lr $LR \
-    --layer $LAYER \
-    --base_model $MODEL \
-    --batch_size $BSZ \
-    --save_model $SAVE \
-    > ${SAVE}/log.train.and.gen 2>&1
-
-# IUPAC representation for inputs
-export MODE=iupac
-export FOLDER=data/llasmol_reaction_${MODE}_combined_80k_noinstruction
-export MODEL=gpt2
-export EPOCHS=60
-export LR=5e-5
-export BSZ=16
-export E=10
-export LAYER=5
-export OLDSAVE=train_models/combined_gpt2/${MODE}_e${EPOCHS}_onebatch_bsz${BSZ}_lr${LR}
-export SAVE=${OLDSAVE}/fg_e${E}
-echo $SAVE
-mkdir -p $SAVE
-TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/train_teacher_combined_fg.py \
-    --from_pretrained  ${OLDSAVE}/checkpoint_${E} \
-    --train_path ${FOLDER}/train.txt \
-    --val_path ${FOLDER}/valid.txt \
-    --test_path ${FOLDER}/test_smiles.txt \
-    --epochs 1 \
-    --lr $LR \
-    --layer $LAYER \
-    --base_model $MODEL \
-    --batch_size $BSZ \
-    --save_model $SAVE \
-    > ${SAVE}/log.train.and.gen 2>&1
-```
-
-Then we test if the reaction prediction consistency correlates with the probe's consistency
-
-```
-python calc_probe_consistency.py
-```
-
