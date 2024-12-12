@@ -60,7 +60,6 @@ export FOLDER=data/reaction_${MODE}_80k
 export MODEL=gpt2
 export EPOCHS=20
 export LR=1e-4
-export BSZ=32
 export SAVE=train_models_nokl/${MODE}
 echo $SAVE
 mkdir -p $SAVE
@@ -69,7 +68,7 @@ TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/ev
     --epochs $EPOCHS \
     --base_model $MODEL \
     --save_model $SAVE \
-    > ${SAVE}/log.gen.beam 2>&1&
+    > ${SAVE}/log.gen 2>&1&
 
 # IUPAC representation for inputs
 export MODE=iupac
@@ -77,7 +76,6 @@ export FOLDER=data/reaction_${MODE}_80k
 export MODEL=gpt2
 export EPOCHS=20
 export LR=1e-4
-export BSZ=32
 export SAVE=train_models_nokl/${MODE}
 echo $SAVE
 mkdir -p $SAVE
@@ -86,7 +84,7 @@ TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src/ev
     --epochs $EPOCHS \
     --base_model $MODEL \
     --save_model $SAVE \
-    > ${SAVE}/log.gen.beam 2>&1&
+    > ${SAVE}/log.gen 2>&1&
 ```
 
 Then we evaluate the prediction and calculate the consistency between SMILES and IUPAC inputs.
