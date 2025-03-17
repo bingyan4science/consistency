@@ -11,6 +11,45 @@ The code has been tested on Python 3.10 and PyTorch 2.1.0.
 * Python 3.10.13: `conda create --prefix ../conda_consist python=3.10`
 * PyTorch: https://pytorch.org/get-started/locally/ `conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia`
 
+## Dataset
+
+We have added the forward reaction prediction subset (80k) in the `data` folder. The full dataset is available at https://doi.org/10.5281/zenodo.14430369.
+
+## Evaluation on the state-of-the-art LLMs
+
+We have provided the code for evaluating the state-of-the-art LLMs on the forward reaction prediction task. Taking `o3-mini` as an example:
+
+```
+# SMILES representation for inputs
+export MODE=smiles
+export FOLDER=data/llasmol_reaction_${MODE}_combined_80k_noinstruction
+export SAVE=gpt/o3-mini/${MODE}
+export MODEL=o3-mini
+echo $SAVE
+mkdir -p $SAVE
+TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src_llm/gpt_product_pred_no_system.py \
+    --data_folder ${FOLDER} \
+    --save_model $SAVE \
+    --mode $MODE \
+    --base_model $MODEL \
+    > ${SAVE}/log.gen 2>&1&
+
+
+# IUPAC representation for inputs
+export MODE=iupac
+export FOLDER=data/llasmol_reaction_${MODE}_combined_80k_noinstruction
+export SAVE=gpt/o3-mini/${MODE}
+export MODEL=o3-mini
+echo $SAVE
+mkdir -p $SAVE
+TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src_llm/gpt_product_pred_no_system.py \
+    --data_folder ${FOLDER} \
+    --save_model $SAVE \
+    --mode $MODE \
+    --base_model $MODEL \
+    > ${SAVE}/log.gen 2>&1&
+```
+
 ## Finetuning experiments: Train a forward reaction prediction model based on GPT-2 Small
 
 For the finetuning, we train a forward reaction prediction model by finetuning the GPT-2 Small model on one-to-one mapped SMILES vs IUPAC input representations, and equal chance of generating SMILES and IUPAC outputs:
