@@ -8,7 +8,8 @@ This repo provides code for "Inconsistency of Large Language Models In Molecular
 
 The code has been tested on Python 3.10 and PyTorch 2.1.0.
 
-* Python 3.10.13: `conda create -n conda_consist python=3.10`
+* Python 3.10.13: `conda create -n consistency python=3.10`
+* To activate the conda environment: `conda activate consistency`
 * PyTorch: https://pytorch.org/get-started/locally/ `conda install pytorch==2.1.0 torchvision==0.16.0 torchaudio==2.1.0 pytorch-cuda=11.8 -c pytorch -c nvidia`
 
 ## Dataset
