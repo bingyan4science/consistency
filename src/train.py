@@ -14,6 +14,7 @@ import random
 import numpy as np
 from torch.nn.utils.rnn import pad_sequence
 import copy
+import time  # Add time module
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
@@ -366,11 +367,11 @@ def evaluate(device_a, device_b, dataloader_a, dataloader_b, tokenizer, ctx, mod
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_path_a_1', type=str, required=True)
-    parser.add_argument('--train_path_a_2', type=str, required=True)
+    parser.add_argument('--train_path_a', type=str, required=True)
+    #parser.add_argument('--train_path_a_2', type=str, required=True)
     parser.add_argument('--val_path_a', type=str, required=True)
-    parser.add_argument('--train_path_b_1', type=str, required=True)
-    parser.add_argument('--train_path_b_2', type=str, required=True)
+    parser.add_argument('--train_path_b', type=str, required=True)
+    #parser.add_argument('--train_path_b_2', type=str, required=True)
     parser.add_argument('--val_path_b', type=str, required=True)
     parser.add_argument('--save_model_a', type=str, required=True)
     parser.add_argument('--save_model_b', type=str, required=True)
@@ -393,7 +394,7 @@ def main():
     args = parser.parse_args()
 
     print (args)
-
+    #import ipdb; ipdb.set_trace()
     dtype = 'float32'
     ptdtype = {'float32': torch.float32, 'bfloat16': torch.bfloat16, 'float16': torch.float16}[dtype]
     device_a = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -422,25 +423,25 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    train_dataset_a_1 = Dataset(tokenizer, args.train_path_a_1, 1024, shuffle=True)
-    train_dataloader_a_1 = DataLoader(train_dataset_a_1, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
-    train_dataset_a_2 = Dataset(tokenizer, args.train_path_a_2, 1024, shuffle=True)
-    train_dataloader_a_2 = DataLoader(train_dataset_a_2, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
+    train_dataset_a = Dataset(tokenizer, args.train_path_a, 1024, shuffle=True)
+    train_dataloader_a = DataLoader(train_dataset_a, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
+    #train_dataset_a_2 = Dataset(tokenizer, args.train_path_a_2, 1024, shuffle=True)
+    #train_dataloader_a_2 = DataLoader(train_dataset_a_2, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
     val_dataset_a = Dataset(tokenizer, args.val_path_a, 1024)
     val_dataloader_a = DataLoader(val_dataset_a, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
 
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    train_dataset_b_1 = Dataset(tokenizer, args.train_path_b_1, 1024, shuffle=True)
-    train_dataloader_b_1 = DataLoader(train_dataset_b_1, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
-    train_dataset_b_2 = Dataset(tokenizer, args.train_path_b_2, 1024, shuffle=True)
-    train_dataloader_b_2 = DataLoader(train_dataset_b_2, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
+    train_dataset_b = Dataset(tokenizer, args.train_path_b, 1024, shuffle=True)
+    train_dataloader_b = DataLoader(train_dataset_b, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
+    #train_dataset_b_2 = Dataset(tokenizer, args.train_path_b_2, 1024, shuffle=True)
+    #train_dataloader_b_2 = DataLoader(train_dataset_b_2, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
     val_dataset_b = Dataset(tokenizer, args.val_path_b, 1024)
     val_dataloader_b = DataLoader(val_dataset_b, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
     
-    dataloader_length = len(train_dataloader_a_1)
-    dataloader_length = len(train_dataloader_b_1)
+    dataloader_length = len(train_dataloader_a)
+    dataloader_length = len(train_dataloader_b)
             
 
     # Create Optimizer
@@ -455,18 +456,23 @@ def main():
     model_b.train()
     step = 0
 
+    # Start timing total training
+    total_start_time = time.time()
+    
     # Train
     best_ppl_a = float('inf')
     best_ppl_b = float('inf')
     for epoch in range(args.epochs):
+        # Start timing this epoch
+        epoch_start_time = time.time()
         print(f"Epoch {epoch}")
         model_a.train()
         model_b.train()
-        for batch_a_1, batch_a_2, batch_b_1, batch_b_2 in tqdm.tqdm(zip(train_dataloader_a_1, train_dataloader_a_2, train_dataloader_b_1, train_dataloader_b_2), total=dataloader_length):
-            input_ids_a = batch_a_1['input_ids_all'].to(device_a)
-            labels_a = batch_a_1['labels_all'].to(device_a)
-            input_ids_b = batch_b_1['input_ids_all'].to(device_b)
-            labels_b = batch_b_1['labels_all'].to(device_b)
+        for batch_a, batch_b in tqdm.tqdm(zip(train_dataloader_a, train_dataloader_b), total=dataloader_length):
+            input_ids_a = batch_a['input_ids_all'].to(device_a)
+            labels_a = batch_a['labels_all'].to(device_a)
+            input_ids_b = batch_b['input_ids_all'].to(device_b)
+            labels_b = batch_b['labels_all'].to(device_b)
             mask_a = labels_a[...,1:].ge(0)
             mask_b = labels_b[...,1:].ge(0)
             
@@ -486,7 +492,7 @@ def main():
                 loss_b = outputs_b.loss
             loss_b.div(args.accumulate).backward()
 
-            if epoch > 0:
+            if epoch > args.pretrain_epochs-1:
                 loss_consist_a, loss_consist_b = compute_consist_loss(model_a, model_b, tokenizer, args.max_new_tokens, args.num_samples, input_ids_a, input_ids_b, device_a, device_b, args.weight, ctx, args.accumulate, train=True)
                 
             else:
@@ -510,6 +516,7 @@ def main():
                 sys.stdout.flush()
             step += 1
 
+            """
             input_ids_a = batch_a_2['input_ids_all'].to(device_a)
             labels_a = batch_a_2['labels_all'].to(device_a)
             input_ids_b = batch_b_2['input_ids_all'].to(device_b)
@@ -557,6 +564,7 @@ def main():
                 sys.stdout.flush()
             step += 1
             #break
+        """
         accuracy_a, token_accuracy_a, ppl_a, accuracy_b, token_accuracy_b, ppl_b, kl_loss_a, kl_loss_b = evaluate(device_a, device_b, val_dataloader_a, val_dataloader_b, tokenizer, ctx, model_a, model_b, args.max_new_tokens, epoch, args.save_model_a, args.save_model_b, 1*args.num_samples, args.generate_onebatch)
         if ppl_a < best_ppl_a:
             print ('best val ppl a')
@@ -567,6 +575,14 @@ def main():
         print (f'Val. PPL a: {ppl_a}; PPL b: {ppl_b}; Accuracy a: {accuracy_a}; Accuracy b: {accuracy_b}; Token Accuracy a: {token_accuracy_a}; Token Accuracy b: {token_accuracy_b}. Consist loss: {kl_loss_a}. {kl_loss_b}.')
         model_a.save_pretrained(os.path.join(args.save_model_a, f'checkpoint_{epoch}'))
         model_b.save_pretrained(os.path.join(args.save_model_b, f'checkpoint_{epoch}'))
+        
+        # Calculate and print epoch timing
+        epoch_time = time.time() - epoch_start_time
+        print(f"Epoch {epoch} completed in {epoch_time:.2f} seconds")
+
+    # Calculate and print total training time
+    total_training_time = time.time() - total_start_time
+    print(f"\nTotal training completed in {total_training_time:.2f} seconds ({total_training_time/3600:.2f} hours)")
 
 if __name__ == "__main__":
     main()

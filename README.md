@@ -55,7 +55,7 @@ TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0 stdbuf -oL -eL python src_ll
 
 For the finetuning, we train a forward reaction prediction model by finetuning the GPT-2 Small model on one-to-one mapped SMILES vs IUPAC input representations, and equal chance of generating SMILES and IUPAC outputs:
 
-To finetunewithout KL divergence loss
+To finetune without KL divergence loss
 ```
 export MODE_A=smiles
 export MODE_B=iupac
@@ -72,7 +72,7 @@ export SAVE=train_models_nokl
 echo $SAVE
 mkdir -p ${SAVE}/${MODE_A}
 mkdir -p ${SAVE}/${MODE_B}
-TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICESNOTUSED=0 stdbuf -oL -eL python src/train.py \
+TOKENIZERS_PARALLELISM=false CUDA_VISIBLE_DEVICES=0,1 stdbuf -oL -eL python src/train.py \
     --train_path_a ${FOLDER_A}/train.txt \
     --val_path_a ${FOLDER_A}/valid.txt \
     --train_path_b ${FOLDER_B}/train.txt \
