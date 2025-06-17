@@ -12,6 +12,7 @@ The code has been tested on Python 3.10 and PyTorch 2.1.0.
 * To activate the conda environment: `conda activate consistency`
 * PyTorch: https://pytorch.org/get-started/locally/ `conda install pytorch==2.4.1 torchvision==0.19.1 torchaudio==2.4.1 pytorch-cuda=12.4 -c pytorch -c nvidia`
 * Transformers: `pip install transformers==4.44.2`
+* Pandas: `pip install pandas==2.2.3`
 
 ## Dataset
 
