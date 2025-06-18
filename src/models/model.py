@@ -30,12 +30,18 @@ class Model(nn.Module):
             self.base_model = AutoModelForCausalLM.from_pretrained(config.base_model)
             self.tokenizer = AutoTokenizer.from_pretrained(config.tokenizer_name)
 
-    def forward(self, input_ids):
-        outputs = self.base_model.forward(input_ids=input_ids, output_hidden_states=False)
+    def forward(self, input_ids, labels=None):
+        if self.config.base_model == "Salesforce/codet5-small":
+            outputs = self.base_model.forward(input_ids=input_ids, labels=labels, output_hidden_states=False)
+        else:
+            outputs = self.base_model.forward(input_ids=input_ids, output_hidden_states=False)
         return outputs
 
     def compute_loss(self, input_ids, labels, logits_only=False, validation=False):
-        outputs = self.forward(input_ids=input_ids)
+        if self.config.base_model == "Salesforce/codet5-small":
+            outputs = self.forward(input_ids=input_ids, labels=labels)
+        else:
+            outputs = self.forward(input_ids=input_ids)
         logits = outputs.logits
 
         labels_pred = logits.argmax(-1)
