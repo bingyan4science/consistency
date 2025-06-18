@@ -409,8 +409,13 @@ def main():
 
     # Create Model
     config = Config(base_model=args.base_model)
-    model_a = Model(config).to(device_a).to(ptdtype)
-    model_b = Model(config).to(device_b).to(ptdtype)
+    if args.base_model == "mistralai/Mistral-7B-v0.1":
+        model_a = Model(config)
+        model_b = Model(config)
+    else:
+        model_a = Model(config).to(device_a).to(ptdtype)
+        model_b = Model(config).to(device_b).to(ptdtype)
+    
     if args.nopretrain:
         print ('reinitializing weights')
         model_a.base_model.apply(model_a.base_model._init_weights)
@@ -441,13 +446,15 @@ def main():
     val_dataloader_b = DataLoader(val_dataset_b, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
     
     dataloader_length = len(train_dataloader_a)
-    dataloader_length = len(train_dataloader_b)
-            
+    dataloader_length = len(train_dataloader_b)    
 
     # Create Optimizer
     trainable_params_a = list(model_a.parameters())
     trainable_params_b = list(model_b.parameters())
-    use_fused = True
+    if args.base_model == "mistralai/Mistral-7B-v0.1":
+        use_fused = False
+    else:
+        use_fused = True
     extra_args = dict(fused=True) if use_fused else dict()
     optimizer_a = torch.optim.AdamW(trainable_params_a, lr=args.lr, **extra_args)
     optimizer_b = torch.optim.AdamW(trainable_params_b, lr=args.lr, **extra_args)

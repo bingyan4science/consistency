@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss
 
-from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteriaList, GenerationConfig, LogitsProcessorList
+from transformers import AutoModelForCausalLM, AutoTokenizer, StoppingCriteriaList, GenerationConfig, LogitsProcessorList, AutoModelForSeq2SeqLM
 
 from .configuration import Config
 import sys
@@ -16,8 +16,19 @@ class Model(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
-        self.base_model = AutoModelForCausalLM.from_pretrained(config.base_model)
-        self.tokenizer = AutoTokenizer.from_pretrained(config.tokenizer_name)
+        if config.base_model == "Salesforce/codet5-small":
+            self.tokenizer = AutoTokenizer.from_pretrained(config.tokenizer_name)
+            self.base_model = AutoModelForSeq2SeqLM.from_pretrained(config.base_model)
+        elif config.base_model == "mistralai/Mistral-7B-v0.1":
+            self.tokenizer = AutoTokenizer.from_pretrained(config.tokenizer_name)
+            self.base_model = AutoModelForCausalLM.from_pretrained(
+                config.base_model,
+                device_map="auto",
+                torch_dtype=torch.float32,
+                load_in_4bit=True)
+        else:
+            self.base_model = AutoModelForCausalLM.from_pretrained(config.base_model)
+            self.tokenizer = AutoTokenizer.from_pretrained(config.tokenizer_name)
 
     def forward(self, input_ids):
         outputs = self.base_model.forward(input_ids=input_ids, output_hidden_states=False)
