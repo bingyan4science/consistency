@@ -6,7 +6,7 @@ This repo provides code for "Inconsistency of Large Language Models In Molecular
 
 ## Dependencies
 
-The code has been tested on Python 3.10 and PyTorch 2.1.0.
+The code has been tested on Python 3.10 and PyTorch 2.4.1.
 
 * Python 3.10.13: `conda create -n consistency python=3.10`
 * To activate the conda environment: `conda activate consistency`
