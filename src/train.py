@@ -36,6 +36,7 @@ def tensorize_batch(examples):
 def sample_sequences(model, tokenizer, max_new_tokens, num_samples, input_ids_1, input_ids_2, train=False):
     if not train:
         model.eval()
+    import ipdb; ipdb.set_trace()
     sampled_sequences_1 = [[] for _ in range(num_samples)]
     sampled_labels_1 = [[] for _ in range(num_samples)]
     sampled_sequences_2 = [[] for _ in range(num_samples)]
@@ -48,7 +49,13 @@ def sample_sequences(model, tokenizer, max_new_tokens, num_samples, input_ids_1,
     for beam_output_i in beam_output:
         assert num_samples == beam_output_i.shape[0]
         for j in range(num_samples):
-            sampled_sequences_1[j].append(beam_output_i[j])   
+            if model.config.base_model == "Salesforce/codet5-small":
+                sampled_labels_1[j].append(beam_output_i[j])
+            else:
+                sampled_sequences_1[j].append(beam_output_i[j])   
+    if model.config.base_model == "Salesforce/codet5-small":
+        # find separator position in input_ids_1
+        
     for j, seq in enumerate(sampled_sequences_1):
         labels_1 = copy.deepcopy(seq)
         seq_2 = []
@@ -57,6 +64,8 @@ def sample_sequences(model, tokenizer, max_new_tokens, num_samples, input_ids_1,
         assert len(seq) == len(input_ids_2)
         for i, (elem, input_2) in enumerate(zip(seq, input_ids_2)):
             end_idx = len(elem)-1
+            if end_idx < 0:
+                continue
             while elem[end_idx] == tokenizer.eos_token_id:
                 end_idx -= 1
             elem = elem[:end_idx+2]
@@ -522,6 +531,7 @@ def main():
                 print (f"Step: {step}. PPL a: {ppl_a}. PPL b: {ppl_b}. loss a: {loss_a}. loss b: {loss_b}. Token Accuracy a: {token_accuracy_a}. Token Accuracy b: {token_accuracy_b}. Consist loss: {loss_consist_a}. {loss_consist_b}.")
                 sys.stdout.flush()
             step += 1
+            break
 
             """
             input_ids_a = batch_a_2['input_ids_all'].to(device_a)

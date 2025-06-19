@@ -30,20 +30,26 @@ class Model(nn.Module):
             self.base_model = AutoModelForCausalLM.from_pretrained(config.base_model)
             self.tokenizer = AutoTokenizer.from_pretrained(config.tokenizer_name)
 
-    def forward(self, input_ids, labels=None):
+    def forward(self, input_ids, decoder_input_ids=None):
         if self.config.base_model == "Salesforce/codet5-small":
-            outputs = self.base_model.forward(input_ids=input_ids, labels=labels, output_hidden_states=False)
+            outputs = self.base_model.forward(input_ids=input_ids, decoder_input_ids=decoder_input_ids, output_hidden_states=False)
         else:
             outputs = self.base_model.forward(input_ids=input_ids, output_hidden_states=False)
         return outputs
 
     def compute_loss(self, input_ids, labels, logits_only=False, validation=False):
         if self.config.base_model == "Salesforce/codet5-small":
-            outputs = self.forward(input_ids=input_ids, labels=labels)
+            import ipdb; ipdb.set_trace()
+            shifted = labels.new_zeros(labels.shape)
+            eos_mask = labels.ne(-100)
+            labels_masked = labels.masked_fill(~eos_mask, self.tokenizer.pad_token_id)
+            shifted[:, 1:] = labels_masked[:, :-1]
+            shifted[:, 0] = self.tokenizer.pad_token_id
+            outputs = self.forward(input_ids=input_ids, decoder_input_ids=shifted)
+            del shifted, eos_mask, labels_masked
         else:
             outputs = self.forward(input_ids=input_ids)
         logits = outputs.logits
-
         labels_pred = logits.argmax(-1)
         mask = labels[...,1:].ge(0)
         correct_tokens = ((labels_pred[...,:-1] == labels[...,1:]) * mask).sum()
@@ -101,14 +107,19 @@ class Model(nn.Module):
             sep_positions_i = [ii for ii, n in enumerate(input_ids_i.view(-1)) if n == self.tokenizer.eos_token_id][-3]
             input_ids_i = input_ids_i.view(1, -1)[:, :sep_positions_i+1]
             input_ids_all.append(input_ids_i)
+        import ipdb; ipdb.set_trace()
         max_seq_len = max([ele.shape[-1] for ele in input_ids_all])
         input_ids_tensor = torch.zeros(batch_size,max_seq_len).long().to(input_ids.device)
         attention_mask_tensor = input_ids_tensor.data.clone()
         input_ids_tensor.fill_(self.tokenizer.eos_token_id)
         for i in range(batch_size):
-            pad_len = max_seq_len - input_ids_all[i].shape[-1]
-            input_ids_tensor[i, pad_len:] = torch.Tensor(input_ids_all[i]).view(-1).to(input_ids.device)
-            attention_mask_tensor[i, pad_len:] = 1
+            if self.config.base_model == "Salesforce/codet5-small":
+                input_ids_tensor[i, :input_ids_all[i].shape[-1]] = torch.Tensor(input_ids_all[i]).view(-1).to(input_ids.device)
+                attention_mask_tensor[i, :input_ids_all[i].shape[-1]] = 1
+            else:
+                pad_len = max_seq_len - input_ids_all[i].shape[-1]
+                input_ids_tensor[i, pad_len:] = torch.Tensor(input_ids_all[i]).view(-1).to(input_ids.device)
+                attention_mask_tensor[i, pad_len:] = 1
         
         beam_output = self.base_model.generate(
             input_ids=input_ids_tensor,
@@ -125,8 +136,14 @@ class Model(nn.Module):
         beam_output = beam_output.view(batch_size,num_return_sequences,-1)
         beam_output_list = []
         for i in range(batch_size):
-            pad_len = max_seq_len - input_ids_all[i].shape[-1]
-            beam_output_list.append(beam_output[i,:,pad_len:])
+            if self.config.base_model == "Salesforce/codet5-small":
+                pad_pos = beam_output.shape[-1] - 1
+                while beam_output[i,:,pad_pos] == self.tokenizer.eos_token_id:
+                    pad_pos -= 1
+                beam_output_list.append(beam_output[i,:,:pad_pos+1])
+            else:
+                pad_len = max_seq_len - input_ids_all[i].shape[-1]
+                beam_output_list.append(beam_output[i,:,pad_len:])
         return beam_output_list
 
     @classmethod
