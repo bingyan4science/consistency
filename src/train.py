@@ -36,7 +36,7 @@ def tensorize_batch(examples):
 def sample_sequences(model, tokenizer, max_new_tokens, num_samples, input_ids_1, input_ids_2, train=False):
     if not train:
         model.eval()
-    import ipdb; ipdb.set_trace()
+    #import ipdb; ipdb.set_trace()
     sampled_sequences_1 = [[] for _ in range(num_samples)]
     sampled_labels_1 = [[] for _ in range(num_samples)]
     sampled_sequences_2 = [[] for _ in range(num_samples)]
@@ -54,11 +54,10 @@ def sample_sequences(model, tokenizer, max_new_tokens, num_samples, input_ids_1,
         for j, label in enumerate(sampled_labels_1):
             sampled_sequences_1[j] = input_ids_1
             sampled_sequences_2[j] = input_ids_2
-            sampled_labels_1[j] = torch.tensor(label)
-            sampled_labels_2[j] = torch.tensor(label)
+            label = tensorize_batch(label)
+            sampled_labels_1[j] = label
+            sampled_labels_2[j] = label
         return sampled_sequences_1, sampled_labels_1, sampled_sequences_2, sampled_labels_2
-
-
 
     for beam_output_i in beam_output:
         assert num_samples == beam_output_i.shape[0]
@@ -297,60 +296,130 @@ def evaluate(device_a, device_b, dataloader_a, dataloader_b, tokenizer, ctx, mod
         total_tokens += outputs_a.total_tokens
         total_instances += batch_size * num_samples
 
-        for seq_a, seq_b in zip(sampled_sequences11, sampled_sequences22):
-            for i, (input_ids_a_i,seq_a_i) in enumerate(zip(input_ids_a, seq_a)):
-                end_idx = len(input_ids_a_i)-1
-                while input_ids_a_i[end_idx] == tokenizer.eos_token_id:
-                    end_idx -= 1
-                input_ids_a_i = input_ids_a_i[:end_idx+2]
-                sep_position = [ii for ii, n in enumerate(input_ids_a_i.view(-1)) if n == tokenizer.eos_token_id][-3]
-                tgt = input_ids_a_i[sep_position+1:]
-                tgt_text = tokenizer.decode(tgt, skip_special_tokens=True)
-                ans = extract_answer(tgt_text)
-                pred_text = tokenizer.decode(seq_a_i[sep_position+1:], skip_special_tokens=True)
-                pred_ans = extract_answer(pred_text)
-                if ans == pred_ans:
-                    total_correct_a += 1
-                tgt_all_a.append(ans.split("#### ")[-1])
-                predicted_all_a.append(pred_ans.split("#### ")[-1])
-                if len(pred_ans.split("#### ")[-1]) == 0:
-                    print("empty prediction")
-                    print(tokenizer.decode(seq_a_i[sep_position+1:], skip_special_tokens=True))
+        if model_a.config.base_model == "Salesforce/codet5-small":
+            for sampled_label_a, sampled_label_b in zip(sampled_labels11, sampled_labels22):
+                for i, (input_ids_a_i, label_a_i, sampled_label_a_i) in enumerate(zip(input_ids_a, labels_a, sampled_label_a)):
+                    end_idx = len(input_ids_a_i)-1
+                    while input_ids_a_i[end_idx] == tokenizer.eos_token_id:
+                        end_idx -= 1
+                    input_ids_a_i = input_ids_a_i[:end_idx+1]
+                    end_idx = len(label_a_i)-1
+                    while label_a_i[end_idx] == -100:
+                        end_idx -= 1
+                    label_a_i = label_a_i[:end_idx+1]
+                    tgt_text = tokenizer.decode(label_a_i, skip_special_tokens=True)
+                    ans = extract_answer(tgt_text)
+                    end_idx = len(sampled_label_a_i)-1
+                    while sampled_label_a_i[end_idx] == -100:
+                        end_idx -= 1
+                    sampled_label_a_i = sampled_label_a_i[:end_idx+1]
+                    pred_text = tokenizer.decode(sampled_label_a_i, skip_special_tokens=True)
+                    pred_ans = extract_answer(pred_text)
+                    if ans == pred_ans:
+                        total_correct_a += 1
+                    tgt_all_a.append(ans.split("#### ")[-1])
+                    predicted_all_a.append(pred_ans.split("#### ")[-1])
+                    if len(pred_ans.split("#### ")[-1]) == 0:
+                        print("empty prediction")
+                        #print(tokenizer.decode(seq_a_i[sep_position+1:], skip_special_tokens=True))
+                
+                    if i == 0 or generate_onebatch:
+                        if first_batch_a and batch_id % 10 == 0:
+                            print (f'Input a: {tokenizer.decode(input_ids_a_i, skip_special_tokens=True)}')
+                            print (f'Target a: {tgt_text}')
+                            print (f'Predicted a: {pred_text}')
+                            print ('')
+                            first_batch_a = False
+                
+                for i, (input_ids_b_i, label_b_i, sampled_label_b_i) in enumerate(zip(input_ids_b, labels_b, sampled_label_b)):
+                    end_idx = len(input_ids_b_i)-1
+                    while input_ids_b_i[end_idx] == tokenizer.eos_token_id:
+                        end_idx -= 1
+                    input_ids_b_i = input_ids_b_i[:end_idx+1]
+                    end_idx = len(label_b_i)-1
+                    while label_b_i[end_idx] == -100:
+                        end_idx -= 1
+                    label_b_i = label_b_i[:end_idx+1]
+                    tgt_text = tokenizer.decode(label_b_i, skip_special_tokens=True)
+                    ans = extract_answer(tgt_text)
+                    end_idx = len(sampled_label_b_i)-1
+                    while sampled_label_b_i[end_idx] == -100:
+                        end_idx -= 1
+                    sampled_label_b_i = sampled_label_b_i[:end_idx+1]
+                    pred_text = tokenizer.decode(sampled_label_b_i, skip_special_tokens=True)
+                    pred_ans = extract_answer(pred_text)
+                    if ans == pred_ans:
+                        total_correct_b += 1
+                    tgt_all_b.append(ans.split("#### ")[-1])
+                    predicted_all_b.append(pred_ans.split("#### ")[-1])
+                    if len(pred_ans.split("#### ")[-1]) == 0:
+                        print("empty prediction")
+                        #print(tokenizer.decode(seq_a_i[sep_position+1:], skip_special_tokens=True))
+                
+                    if i == 0 or generate_onebatch:
+                        if first_batch_b and batch_id % 10 == 0:
+                            print (f'Input b: {tokenizer.decode(input_ids_b_i, skip_special_tokens=True)}')
+                            print (f'Target b: {tgt_text}')
+                            print (f'Predicted b: {pred_text}')
+                            print ('')
+                            first_batch_b = False
+        
+        else:
+            for seq_a, seq_b in zip(sampled_sequences11, sampled_sequences22):
+                for i, (input_ids_a_i, seq_a_i) in enumerate(zip(input_ids_a, seq_a)):
+                    end_idx = len(input_ids_a_i)-1
+                    while input_ids_a_i[end_idx] == tokenizer.eos_token_id:
+                        end_idx -= 1
+                    input_ids_a_i = input_ids_a_i[:end_idx+2]
+                    sep_position = [ii for ii, n in enumerate(input_ids_a_i.view(-1)) if n == tokenizer.eos_token_id][-3]
+                    tgt = input_ids_a_i[sep_position+1:]
+                    tgt_text = tokenizer.decode(tgt, skip_special_tokens=True)
+                    ans = extract_answer(tgt_text)
+                    pred_text = tokenizer.decode(seq_a_i[sep_position+1:], skip_special_tokens=True)
+                    pred_ans = extract_answer(pred_text)
+                    if ans == pred_ans:
+                        total_correct_a += 1
+                    tgt_all_a.append(ans.split("#### ")[-1])
+                    predicted_all_a.append(pred_ans.split("#### ")[-1])
+                    if len(pred_ans.split("#### ")[-1]) == 0:
+                        print("empty prediction")
+                        print(tokenizer.decode(seq_a_i[sep_position+1:], skip_special_tokens=True))
+                
+                    if i == 0 or generate_onebatch:
+                        if first_batch_a and batch_id % 10 == 0:
+                            print (f'Input a: {tokenizer.decode(input_ids_a_i[:sep_position], skip_special_tokens=True)}')
+                            print (f'Target a: {tgt_text}')
+                            print (f'Predicted a: {pred_text}')
+                            print ('')
+                            first_batch_a = False
             
-                if i == 0 or generate_onebatch:
-                    if first_batch_a and batch_id % 10 == 0:
-                        print (f'Input a: {tokenizer.decode(input_ids_a_i[:sep_position], skip_special_tokens=True)}')
-                        print (f'Target a: {tgt_text}')
-                        print (f'Predicted a: {pred_text}')
-                        print ('')
-                        first_batch_a = False
-            
-            for i, (input_ids_b_i,seq_b_i) in enumerate(zip(input_ids_b, seq_b)):
-                end_idx = len(input_ids_b_i)-1
-                while input_ids_b_i[end_idx] == tokenizer.eos_token_id:
-                    end_idx -= 1
-                input_ids_b_i = input_ids_b_i[:end_idx+2]
-                sep_position = [ii for ii, n in enumerate(input_ids_b_i.view(-1)) if n == tokenizer.eos_token_id][-3]
-                tgt = input_ids_b_i[sep_position+1:]
-                tgt_text = tokenizer.decode(tgt, skip_special_tokens=True)
-                ans = extract_answer(tgt_text)
-                pred_text = tokenizer.decode(seq_b_i[sep_position+1:], skip_special_tokens=True)
-                pred_ans = extract_answer(pred_text)
-                if ans == pred_ans:
-                    total_correct_b += 1
-                tgt_all_b.append(ans.split("#### ")[-1])
-                predicted_all_b.append(pred_ans.split("#### ")[-1])
-                if len(pred_ans.split("#### ")[-1]) == 0:
-                    print("empty prediction")
-                    print(tokenizer.decode(seq_b_i[sep_position+1:], skip_special_tokens=True))
-            
-                if i == 0 or generate_onebatch:
-                    if first_batch_b and batch_id % 10 == 0:
-                        print (f'Input b: {tokenizer.decode(input_ids_b_i[:sep_position], skip_special_tokens=True)}')
-                        print (f'Target b: {tgt_text}')
-                        print (f'Predicted b: {pred_text}')
-                        print ('')
-                        first_batch_b = False
+                for i, (input_ids_b_i, seq_b_i) in enumerate(zip(input_ids_b, seq_b)):
+                    end_idx = len(input_ids_b_i)-1
+                    while input_ids_b_i[end_idx] == tokenizer.eos_token_id:
+                        end_idx -= 1
+                    input_ids_b_i = input_ids_b_i[:end_idx+2]
+                    sep_position = [ii for ii, n in enumerate(input_ids_b_i.view(-1)) if n == tokenizer.eos_token_id][-3]
+                    tgt = input_ids_b_i[sep_position+1:]
+                    tgt_text = tokenizer.decode(tgt, skip_special_tokens=True)
+                    ans = extract_answer(tgt_text)
+                    pred_text = tokenizer.decode(seq_b_i[sep_position+1:], skip_special_tokens=True)
+                    pred_ans = extract_answer(pred_text)
+                    if ans == pred_ans:
+                        total_correct_b += 1
+                    tgt_all_b.append(ans.split("#### ")[-1])
+                    predicted_all_b.append(pred_ans.split("#### ")[-1])
+                    if len(pred_ans.split("#### ")[-1]) == 0:
+                        print("empty prediction")
+                        print(tokenizer.decode(seq_b_i[sep_position+1:], skip_special_tokens=True))
+                
+                    if i == 0 or generate_onebatch:
+                        if first_batch_b and batch_id % 10 == 0:
+                            print (f'Input b: {tokenizer.decode(input_ids_b_i[:sep_position], skip_special_tokens=True)}')
+                            print (f'Target b: {tgt_text}')
+                            print (f'Predicted b: {pred_text}')
+                            print ('')
+                            first_batch_b = False
+        
         if generate_onebatch:
             accuracy_a = total_correct_a / total_instances
             accuracy_b = total_correct_b / total_instances
@@ -540,7 +609,7 @@ def main():
                 print (f"Step: {step}. PPL a: {ppl_a}. PPL b: {ppl_b}. loss a: {loss_a}. loss b: {loss_b}. Token Accuracy a: {token_accuracy_a}. Token Accuracy b: {token_accuracy_b}. Consist loss: {loss_consist_a}. {loss_consist_b}.")
                 sys.stdout.flush()
             step += 1
-            break
+            #break
 
             """
             input_ids_a = batch_a_2['input_ids_all'].to(device_a)

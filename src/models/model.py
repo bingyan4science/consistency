@@ -157,7 +157,7 @@ class Model(nn.Module):
         )
         beam_output = beam_output.view(batch_size,num_return_sequences,-1)
         beam_output_list = []
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         for i in range(batch_size):
             if self.config.base_model == "Salesforce/codet5-small":
                 pad_pos = beam_output.shape[-1] - 1
