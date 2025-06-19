@@ -46,16 +46,25 @@ def sample_sequences(model, tokenizer, max_new_tokens, num_samples, input_ids_1,
         max_new_tokens=max_new_tokens,
         num_return_sequences=num_samples
         )
+    if model.config.base_model == "Salesforce/codet5-small":
+        for beam_output_i in beam_output:
+            assert num_samples == beam_output_i.shape[0]
+            for j in range(num_samples):
+                sampled_labels_1[j].append(beam_output_i[j])
+        for j, label in enumerate(sampled_labels_1):
+            sampled_sequences_1[j] = input_ids_1
+            sampled_sequences_2[j] = input_ids_2
+            sampled_labels_1[j] = torch.tensor(label)
+            sampled_labels_2[j] = torch.tensor(label)
+        return sampled_sequences_1, sampled_labels_1, sampled_sequences_2, sampled_labels_2
+
+
+
     for beam_output_i in beam_output:
         assert num_samples == beam_output_i.shape[0]
         for j in range(num_samples):
-            if model.config.base_model == "Salesforce/codet5-small":
-                sampled_labels_1[j].append(beam_output_i[j])
-            else:
-                sampled_sequences_1[j].append(beam_output_i[j])   
-    if model.config.base_model == "Salesforce/codet5-small":
-        # find separator position in input_ids_1
-        
+            sampled_sequences_1[j].append(beam_output_i[j])   
+    
     for j, seq in enumerate(sampled_sequences_1):
         labels_1 = copy.deepcopy(seq)
         seq_2 = []
@@ -437,21 +446,21 @@ def main():
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    train_dataset_a = Dataset(tokenizer, args.train_path_a, 1024, shuffle=True)
+    train_dataset_a = Dataset(tokenizer, args.train_path_a, 1024, args.base_model, shuffle=True)
     train_dataloader_a = DataLoader(train_dataset_a, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
     #train_dataset_a_2 = Dataset(tokenizer, args.train_path_a_2, 1024, shuffle=True)
     #train_dataloader_a_2 = DataLoader(train_dataset_a_2, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
-    val_dataset_a = Dataset(tokenizer, args.val_path_a, 1024)
+    val_dataset_a = Dataset(tokenizer, args.val_path_a, 1024, args.base_model)
     val_dataloader_a = DataLoader(val_dataset_a, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
 
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    train_dataset_b = Dataset(tokenizer, args.train_path_b, 1024, shuffle=True)
+    train_dataset_b = Dataset(tokenizer, args.train_path_b, 1024, args.base_model, shuffle=True)
     train_dataloader_b = DataLoader(train_dataset_b, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
     #train_dataset_b_2 = Dataset(tokenizer, args.train_path_b_2, 1024, shuffle=True)
     #train_dataloader_b_2 = DataLoader(train_dataset_b_2, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
-    val_dataset_b = Dataset(tokenizer, args.val_path_b, 1024)
+    val_dataset_b = Dataset(tokenizer, args.val_path_b, 1024, args.base_model)
     val_dataloader_b = DataLoader(val_dataset_b, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
     
     dataloader_length = len(train_dataloader_a)
