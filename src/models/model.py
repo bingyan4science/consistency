@@ -113,48 +113,69 @@ class Model(nn.Module):
         else:
             logits_processor = None
             stopping_criteria = None
+        
+        if self.config.base_model == "Salesforce/codet5-small":
+            attention_mask_tensor = input_ids.data.clone()
+            for i in range(batch_size):
+                input_ids_i = input_ids[i]
+                end_idx = len(input_ids_i)-1
+                while input_ids_i[end_idx] == self.tokenizer.eos_token_id:
+                    end_idx -= 1
+                attention_mask_tensor[i, :end_idx+2] = 1
+                attention_mask_tensor[i, end_idx+2:] = 0
+            
+            beam_output = self.base_model.generate(
+                input_ids=input_ids,
+                attention_mask=attention_mask_tensor,
+                generation_config=generation_config,
+                max_new_tokens=max_new_tokens,
+                num_beams=num_beams,
+                early_stopping=True,
+                logits_processor=logits_processor,
+                stopping_criteria=stopping_criteria,
+                do_sample=True,
+                num_return_sequences=num_return_sequences,
+            )
+        
+        else:
+            beam_output = []
+            input_ids_all = []
+            for i in range(batch_size):
+                if stop_on_two_eos:
+                    generation_config.eos_token_id = -1
+                    logits_processor = LogitsProcessorList([DoubleEOSLogitsProcessor(self.tokenizer.eos_token_id)])
+                    stopping_criteria = StoppingCriteriaList([DoubleEOSStoppingCriteria(self.tokenizer.eos_token_id)])
 
-        beam_output = []
-        input_ids_all = []
-        for i in range(batch_size):
-            if stop_on_two_eos:
-                generation_config.eos_token_id = -1
-                logits_processor = LogitsProcessorList([DoubleEOSLogitsProcessor(self.tokenizer.eos_token_id)])
-                stopping_criteria = StoppingCriteriaList([DoubleEOSStoppingCriteria(self.tokenizer.eos_token_id)])
-
-            input_ids_i = input_ids[i]
-            end_idx = len(input_ids_i)-1
-            while input_ids_i[end_idx] == self.tokenizer.eos_token_id:
-                end_idx -= 1
-            input_ids_i = input_ids_i[:end_idx+2]
-            sep_positions_i = [ii for ii, n in enumerate(input_ids_i.view(-1)) if n == self.tokenizer.eos_token_id][-3]
-            input_ids_i = input_ids_i.view(1, -1)[:, :sep_positions_i+1]
-            input_ids_all.append(input_ids_i)
-        max_seq_len = max([ele.shape[-1] for ele in input_ids_all])
-        input_ids_tensor = torch.zeros(batch_size,max_seq_len).long().to(input_ids.device)
-        attention_mask_tensor = input_ids_tensor.data.clone()
-        input_ids_tensor.fill_(self.tokenizer.eos_token_id)
-        for i in range(batch_size):
-            if self.config.base_model == "Salesforce/codet5-small":
-                input_ids_tensor[i, :input_ids_all[i].shape[-1]] = torch.Tensor(input_ids_all[i]).view(-1).to(input_ids.device)
-                attention_mask_tensor[i, :input_ids_all[i].shape[-1]] = 1
-            else:
+                input_ids_i = input_ids[i]
+                end_idx = len(input_ids_i)-1
+                while input_ids_i[end_idx] == self.tokenizer.eos_token_id:
+                    end_idx -= 1
+                input_ids_i = input_ids_i[:end_idx+2]
+                sep_positions_i = [ii for ii, n in enumerate(input_ids_i.view(-1)) if n == self.tokenizer.eos_token_id][-3]
+                input_ids_i = input_ids_i.view(1, -1)[:, :sep_positions_i+1]
+                input_ids_all.append(input_ids_i)
+            max_seq_len = max([ele.shape[-1] for ele in input_ids_all])
+            input_ids_tensor = torch.zeros(batch_size,max_seq_len).long().to(input_ids.device)
+            attention_mask_tensor = input_ids_tensor.data.clone()
+            input_ids_tensor.fill_(self.tokenizer.eos_token_id)
+            for i in range(batch_size):
                 pad_len = max_seq_len - input_ids_all[i].shape[-1]
                 input_ids_tensor[i, pad_len:] = torch.Tensor(input_ids_all[i]).view(-1).to(input_ids.device)
                 attention_mask_tensor[i, pad_len:] = 1
+            
+            beam_output = self.base_model.generate(
+                input_ids=input_ids_tensor,
+                attention_mask=attention_mask_tensor,
+                generation_config=generation_config,
+                max_new_tokens=max_new_tokens,
+                num_beams=num_beams,
+                early_stopping=True,
+                logits_processor=logits_processor,
+                stopping_criteria=stopping_criteria,
+                do_sample=True,
+                num_return_sequences=num_return_sequences,
+            )
         
-        beam_output = self.base_model.generate(
-            input_ids=input_ids_tensor,
-            attention_mask=attention_mask_tensor,
-            generation_config=generation_config,
-            max_new_tokens=max_new_tokens,
-            num_beams=num_beams,
-            early_stopping=True,
-            logits_processor=logits_processor,
-            stopping_criteria=stopping_criteria,
-            do_sample=True,
-            num_return_sequences=num_return_sequences,
-        )
         beam_output = beam_output.view(batch_size,num_return_sequences,-1)
         beam_output_list = []
         #import ipdb; ipdb.set_trace()
