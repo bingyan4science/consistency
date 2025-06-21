@@ -475,7 +475,7 @@ def main():
     parser.add_argument('--max_grad_norm', type=float, default=1.0)
     parser.add_argument('--num_samples', type=int, default=1)
     parser.add_argument('--seed', type=int, default=1234)
-
+    parser.add_argument('--ckpt', type=str, default=None)
     parser.add_argument('--nopretrain', action='store_true')
     parser.set_defaults(nopretrain=False)
     args = parser.parse_args()
@@ -495,13 +495,20 @@ def main():
     print (ptdtype, dtype, device_a, device_b)
 
     # Create Model
-    config = Config(base_model=args.base_model)
-    if args.base_model == "mistralai/Mistral-7B-v0.1":
-        model_a = Model(config)
-        model_b = Model(config)
+    if args.ckpt:
+        print (f'Loading checkpoint from {args.ckpt}')
+        model_a = Model.from_pretrained(args.ckpt)
+        model_a = model_a.to(device_a).to(ptdtype)
+        model_b = Model.from_pretrained(args.ckpt)
+        model_b = model_b.to(device_b).to(ptdtype)
     else:
-        model_a = Model(config).to(device_a).to(ptdtype)
-        model_b = Model(config).to(device_b).to(ptdtype)
+        config = Config(base_model=args.base_model)
+        if args.base_model == "mistralai/Mistral-7B-v0.1":
+            model_a = Model(config)
+            model_b = Model(config)
+        else:
+            model_a = Model(config).to(device_a).to(ptdtype)
+            model_b = Model(config).to(device_b).to(ptdtype)
     
     if args.nopretrain:
         print ('reinitializing weights')

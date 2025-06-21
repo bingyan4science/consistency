@@ -51,38 +51,81 @@ def evaluate(dataloader, tokenizer, ctx, model, max_new_tokens, epoch, save_mode
             num_return_sequences=num_return_sequences
         )
         # Evaluate
-        for i, (input_ids_all_i, beam_output_i) in enumerate(zip(input_ids_all, beam_output)):
-            end_idx = len(input_ids_all_i)-1
-            while input_ids_all_i[end_idx] == tokenizer.eos_token_id:
-                end_idx -= 1
-            input_ids_all_i = input_ids_all_i[:end_idx+2]
-            sep_position = [i for i, n in enumerate(input_ids_all_i.view(-1)) if n == tokenizer.eos_token_id][-3]
-            tgt = input_ids_all_i[sep_position+1:]
-            tgt_text = tokenizer.decode(tgt, skip_special_tokens=True)
-            ans = extract_answer(tgt_text)
+        if model.config.base_model == "Salesforce/codet5-small":
+            labels_all = batch['labels_all'].to(device)
+            for i, (input_ids_all_i, labels_all_i, beam_output_i) in enumerate(zip(input_ids_all, labels_all, beam_output)):
+                end_idx = len(input_ids_all_i)-1
+                while input_ids_all_i[end_idx] == tokenizer.eos_token_id:
+                    end_idx -= 1
+                input_ids_all_i = input_ids_all_i[:end_idx+1]
+                end_idx = len(labels_all_i)-1
+                while labels_all_i[end_idx] == -100:
+                    end_idx -= 1
+                labels_all_i = labels_all_i[:end_idx+1]
+                tgt_text = tokenizer.decode(labels_all_i, skip_special_tokens=True)
+                ans = extract_answer(tgt_text)
 
-            assert num_return_sequences == beam_output_i.shape[0]
-            for j in range(num_return_sequences):
-                pred_text = tokenizer.decode(beam_output_i[j][sep_position+1:], skip_special_tokens=True)
-                pred_ans = extract_answer(pred_text)
-                if ans == pred_ans:
-                    total_correct += 1
+                assert num_return_sequences == beam_output_i.shape[0]
+                for j in range(num_return_sequences):
+                    sampled_label_i = beam_output_i[j]
+                    end_idx = len(sampled_label_i)-1
+                    while sampled_label_i[end_idx] == -100:
+                        end_idx -= 1
+                    sampled_label_i = sampled_label_i[:end_idx+1]
+                    pred_text = tokenizer.decode(sampled_label_i, skip_special_tokens=True)
+                    pred_ans = extract_answer(pred_text)
+                    if ans == pred_ans:
+                        total_correct += 1
+                    if j == 0:
+                        tgt_all.append(ans.strip().split("####")[1].strip())
+                    try:
+                        predicted_all[j].append(re.split(r'#*#', pred_ans)[1].strip())
+                    except:
+                        if "#" not in pred_ans:
+                            predicted_all[j].append(pred_ans.strip())
+                        else:
+                            import ipdb; ipdb.set_trace()
+                
+                if i == 0:
+                    print (f'Input: {tokenizer.decode(input_ids_all_i[:sep_position], skip_special_tokens=True)}')
+                    print (f'Target: {tgt_text}')
+                    print (f'Predicted: {pred_text}')
+                    print ('')
+   
+        else:
+            for i, (input_ids_all_i, beam_output_i) in enumerate(zip(input_ids_all, beam_output)):
+                end_idx = len(input_ids_all_i)-1
+                while input_ids_all_i[end_idx] == tokenizer.eos_token_id:
+                    end_idx -= 1
+                input_ids_all_i = input_ids_all_i[:end_idx+2]
+                sep_position = [i for i, n in enumerate(input_ids_all_i.view(-1)) if n == tokenizer.eos_token_id][-3]
+                tgt = input_ids_all_i[sep_position+1:]
+                tgt_text = tokenizer.decode(tgt, skip_special_tokens=True)
+                ans = extract_answer(tgt_text)
 
-                if j == 0:
-                    tgt_all.append(ans.strip().split("####")[1].strip())
-                try:
-                    predicted_all[j].append(re.split(r'#*#', pred_ans)[1].strip())
-                except:
-                    if "#" not in pred_ans:
-                        predicted_all[j].append(pred_ans.strip())
-                    else:
-                        import ipdb; ipdb.set_trace()
-        
-            if i == 0:
-                print (f'Input: {tokenizer.decode(input_ids_all_i[:sep_position], skip_special_tokens=True)}')
-                print (f'Target: {tgt_text}')
-                print (f'Predicted: {pred_text}')
-                print ('')
+                assert num_return_sequences == beam_output_i.shape[0]
+                for j in range(num_return_sequences):
+                    pred_text = tokenizer.decode(beam_output_i[j][sep_position+1:], skip_special_tokens=True)
+                    pred_ans = extract_answer(pred_text)
+                    if ans == pred_ans:
+                        total_correct += 1
+
+                    if j == 0:
+                        tgt_all.append(ans.strip().split("####")[1].strip())
+                    try:
+                        predicted_all[j].append(re.split(r'#*#', pred_ans)[1].strip())
+                    except:
+                        if "#" not in pred_ans:
+                            predicted_all[j].append(pred_ans.strip())
+                        else:
+                            import ipdb; ipdb.set_trace()
+            
+                if i == 0:
+                    print (f'Input: {tokenizer.decode(input_ids_all_i[:sep_position], skip_special_tokens=True)}')
+                    print (f'Target: {tgt_text}')
+                    print (f'Predicted: {pred_text}')
+                    print ('')
+    
     accuracy = total_correct / total_instances
     df['Target'] = tgt_all
     for j in range(num_return_sequences):
@@ -100,7 +143,7 @@ def main():
     parser.add_argument('--max_new_tokens', type=int, default=128)
     parser.add_argument('--base_model', type=str, default='gpt2')
     parser.add_argument('--epochs', type=int, default=1)
-    parser.add_argument('--batch_size', type=int, default=8)
+    parser.add_argument('--batch_size', type=int, default=16)
     args = parser.parse_args()
 
     print (args)
@@ -123,15 +166,16 @@ def main():
         print (f'Generating: {epoch}')
         model = Model.from_pretrained(os.path.join(args.save_model, f'checkpoint_{epoch}'))
         model = model.to(device).to(ptdtype)
+        base_model = model.config.base_model
 
         # Load data
         if first:
             first = False
             tokenizer = model.tokenizer
             collate_fn = DataCollator(tokenizer)
-            smiles_dataset = Dataset(tokenizer, os.path.join(args.data_folder, 'test_smiles.txt'), 1024)
+            smiles_dataset = Dataset(tokenizer, os.path.join(args.data_folder, 'test_smiles.txt'), 1024, base_model)
             smiles_dataloader = DataLoader(smiles_dataset, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
-            iupac_dataset = Dataset(tokenizer, os.path.join(args.data_folder, 'test_iupac.txt'), 1024)
+            iupac_dataset = Dataset(tokenizer, os.path.join(args.data_folder, 'test_iupac.txt'), 1024, base_model)
             iupac_dataloader = DataLoader(iupac_dataset, batch_size=args.batch_size, collate_fn=collate_fn, shuffle=False)
         for split, dataloader in [('smiles', smiles_dataloader), ('iupac', iupac_dataloader)]:
             accuracy = evaluate(dataloader, tokenizer, ctx, model, args.max_new_tokens, epoch, args.save_model, split)
