@@ -26,12 +26,12 @@ smiles_common_true_list = []
 iupac_common_true_list = []
 
 for epoch in range(20):
-    input_file_smiles = f'train_models_kl/smiles/valid_results_splitsmiles.csv'
+    input_file_smiles = f'train_models_kl_t2/smiles/sample32/valid_results_epoch{epoch}_splitsmiles.csv'
     df_in_smiles = pd.read_csv(input_file_smiles)
     df_in_smiles_false = df_in_smiles[df_in_smiles['Predicted_0']!=df_in_smiles['Target']]
     df_in_smiles_true = df_in_smiles[df_in_smiles['Predicted_0']==df_in_smiles['Target']]
     smiles_smiles_true_list.append(df_in_smiles_true.shape[0])
-    input_file_smiles2 = f'train_models_kl/iupac/valid_results_splitsmiles.csv'
+    input_file_smiles2 = f'train_models_kl_t2/iupac/sample32/valid_results_epoch{epoch}_splitsmiles.csv'
     df_in_smiles2 = pd.read_csv(input_file_smiles2)
     df_in_smiles2_false = df_in_smiles2[df_in_smiles2['Predicted_0']!=df_in_smiles2['Target']]
     df_in_smiles2_true = df_in_smiles2[df_in_smiles2['Predicted_0']==df_in_smiles2['Target']]
@@ -42,12 +42,12 @@ for epoch in range(20):
     smiles_common_true = df_in_smiles_common_true.shape[0]
     smiles_common_true_list.append(smiles_common_true)
     acc_smiles = df_in_smiles[df_in_smiles['Predicted_0']==df_in_smiles2['Predicted_0']].shape[0] / len(df_in_smiles)
-    input_file_iupac = f'train_models_kl/smiles/valid_results_splitiupac.csv'
+    input_file_iupac = f'train_models_kl_t2/smiles/sample32/valid_results_epoch{epoch}_splitiupac.csv'
     df_in_iupac = pd.read_csv(input_file_iupac)
     df_in_iupac_false = df_in_iupac[df_in_iupac['Predicted_0']!=df_in_iupac['Target']]
     df_in_iupac_true = df_in_iupac[df_in_iupac['Predicted_0']==df_in_iupac['Target']]
     smiles_iupac_true_list.append(df_in_iupac_true.shape[0])
-    input_file_iupac2 = f'train_models_kl/iupac/valid_results_splitiupac.csv'
+    input_file_iupac2 = f'train_models_kl_t2/iupac/sample32/valid_results_epoch{epoch}_splitiupac.csv'
     df_in_iupac2 = pd.read_csv(input_file_iupac2)
     df_in_iupac2_false = df_in_iupac2[df_in_iupac2['Predicted_0']!=df_in_iupac2['Target']]
     df_in_iupac2_true = df_in_iupac2[df_in_iupac2['Predicted_0']==df_in_iupac2['Target']]

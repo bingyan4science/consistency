@@ -158,7 +158,7 @@ def main():
     for epoch in range(args.epochs):
         flag = True
         for split in ['smiles', 'iupac']:
-            out_file = f'{args.save_model}/sample32/valid_results_epoch{epoch}_split{split}.csv'
+            out_file = f'{args.save_model}/sample32_trans/valid_results_epoch{epoch}_split{split}.csv'
             if not os.path.exists(out_file):
                 flag = False
         if flag:

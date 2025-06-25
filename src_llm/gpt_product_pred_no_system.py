@@ -132,12 +132,12 @@ def main():
             if ans is None:
                 ans = ''
             tgt_all.append(ans)
-
+            #import ipdb; ipdb.set_trace()
             if args.task == 'translation':
                 if split == 'smiles':
-                    pred = pred_trans_smiles(src, model=args.base_model)
-                elif split == 'iupac':
                     pred = pred_trans_iupac(src, model=args.base_model)
+                elif split == 'iupac':
+                    pred = pred_trans_smiles(src, model=args.base_model)
             elif args.task == 'reaction_pred':
                 if split == 'smiles':
                     pred = pred_reaction_smiles(src, model=args.base_model, mode=args.mode)
