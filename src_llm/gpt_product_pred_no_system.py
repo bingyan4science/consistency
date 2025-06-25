@@ -58,6 +58,32 @@ def pred_reaction_iupac(reaction, model, mode):
         messages.append({"role": "assistant", "content": reply})
     return reply
 
+def pred_trans_smiles(smiles, model):
+    instruction = "Given the SMILES string of a compound, output its IUPAC name. For example:\nInput: CN(C)C=CC1=CC=C(C#N)C=C1[N+](=O)[O-]\nOutput: 4-[2-(dimethylamino)ethenyl]-3-nitrobenzonitrile\n"
+    message = smiles
+    messages = []
+    if message:
+        full_prompt = instruction + 'Input: ' + message
+        messages.append({"role": "user", "content": full_prompt})
+        chat = client.chat.completions.create(model=model, messages=messages)
+        reply = chat.choices[0].message.content
+        messages.append({"role": "assistant", "content": reply})
+    return reply
+
+
+def pred_trans_iupac(iupac, model):
+    instruction = "Given the IUPAC name of a compound, output its SMILES string. For example:\nInput: 4-[2-(dimethylamino)ethenyl]-3-nitrobenzonitrile\nOutput: CN(C)C=CC1=CC=C(C#N)C=C1[N+](=O)[O-]\n"
+    message = iupac
+    messages = []
+    if message:
+        full_prompt = instruction + 'Input: ' + message
+        messages.append({"role": "user", "content": full_prompt})
+        chat = client.chat.completions.create(model=model, messages=messages)
+        reply = chat.choices[0].message.content
+        messages.append({"role": "assistant", "content": reply})
+    return reply
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_folder', type=str, required=True)
@@ -66,6 +92,7 @@ def main():
     parser.add_argument('--base_model', type=str, default='gpt-4')
     parser.add_argument('--start_idx_smiles', type=int, default=0)
     parser.add_argument('--start_idx_iupac', type=int, default=0)
+    parser.add_argument('--task', type=str, default='reaction_pred')
     args = parser.parse_args()
     print (args)
 
@@ -106,10 +133,16 @@ def main():
                 ans = ''
             tgt_all.append(ans)
 
-            if split == 'smiles':
-                pred = pred_reaction_smiles(src, model=args.base_model, mode=args.mode)
-            elif split == 'iupac': 
-                pred = pred_reaction_iupac(src, model=args.base_model, mode=args.mode)
+            if args.task == 'translation':
+                if split == 'smiles':
+                    pred = pred_trans_smiles(src, model=args.base_model)
+                elif split == 'iupac':
+                    pred = pred_trans_iupac(src, model=args.base_model)
+            elif args.task == 'reaction_pred':
+                if split == 'smiles':
+                    pred = pred_reaction_smiles(src, model=args.base_model, mode=args.mode)
+                elif split == 'iupac': 
+                    pred = pred_reaction_iupac(src, model=args.base_model, mode=args.mode)
             pred = pred.strip('\n')
             pred = pred.strip('\"')
             pred = pred.replace("'", "")
